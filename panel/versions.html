@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Versões - Painel de Licenças</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="static/css/style.css" rel="stylesheet">
+</head>
+<body>
+<div id="app"></div>
+
+<script src="static/js/config.js"></script>
+<script src="static/js/api.js"></script>
+<script src="static/js/layout.js"></script>
+<script>
+  requireAuth();
+
+  renderLayout("versions", `
+    <h2 class="mb-4">Versões do Programa</h2>
+
+    <div class="card stat-card p-3 mb-4">
+      <h5>Publicar nova versão</h5>
+      <form id="versionForm" class="row g-2">
+        <div class="col-md-2">
+          <input class="form-control" id="v_version" placeholder="Ex: 1.2.0" required>
+        </div>
+        <div class="col-md-4">
+          <input class="form-control" id="v_url" placeholder="URL de download" required>
+        </div>
+        <div class="col-md-4">
+          <input class="form-control" id="v_changelog" placeholder="Changelog">
+        </div>
+        <div class="col-md-1 form-check form-switch d-flex align-items-center">
+          <input class="form-check-input me-2" type="checkbox" id="v_mandatory">
+          <label class="form-check-label small">Obrigatória</label>
+        </div>
+        <div class="col-md-1">
+          <button class="btn btn-primary w-100" type="submit">Publicar</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead><tr><th>Versão</th><th>Atual</th><th>Obrigatória</th><th>URL</th><th>Changelog</th><th>Publicada em</th></tr></thead>
+        <tbody id="versionsBody"></tbody>
+      </table>
+    </div>
+  `);
+
+  async function loadVersions() {
+    try {
+      const versions = await listVersions();
+      document.getElementById("versionsBody").innerHTML = versions.map((v) => `
+        <tr>
+          <td><code>${v.version}</code></td>
+          <td>${v.is_current ? "✅" : "-"}</td>
+          <td>${v.is_mandatory ? "⚠️ Sim" : "Não"}</td>
+          <td><a href="${v.download_url}" target="_blank">Link</a></td>
+          <td>${v.changelog || "-"}</td>
+          <td>${new Date(v.created_at).toLocaleString("pt-BR")}</td>
+        </tr>
+      `).join("");
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  document.getElementById("versionForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const payload = {
+      version: document.getElementById("v_version").value,
+      download_url: document.getElementById("v_url").value,
+      changelog: document.getElementById("v_changelog").value || null,
+      is_mandatory: document.getElementById("v_mandatory").checked,
+      is_current: true,
+    };
+    try {
+      await createVersion(payload);
+      e.target.reset();
+      loadVersions();
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  loadVersions();
+</script>
+</body>
+</html>

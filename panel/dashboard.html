@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard - Painel de Licenças</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="static/css/style.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div id="app"></div>
+
+<script src="static/js/config.js"></script>
+<script src="static/js/api.js"></script>
+<script src="static/js/layout.js"></script>
+<script>
+  requireAuth();
+
+  renderLayout("dashboard", `
+    <h2 class="mb-4">Dashboard</h2>
+    <div class="row g-3 mb-4" id="statsRow"></div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-12 col-lg-6">
+        <div class="card stat-card p-3">
+          <h5>Licenças criadas por mês</h5>
+          <canvas id="monthlyChart" height="200"></canvas>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="card stat-card p-3">
+          <h5>Logins por dia (últimos 30 dias)</h5>
+          <canvas id="dailyChart" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="card stat-card p-3">
+      <h5>Últimas 10 licenças criadas</h5>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead>
+            <tr>
+              <th>Chave</th><th>Tipo</th><th>Status</th><th>Cliente</th><th>Criada em</th>
+            </tr>
+          </thead>
+          <tbody id="recentTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  `);
+
+  function statCard(label, value, colorClass) {
+    return `
+      <div class="col-6 col-md-4 col-lg-2">
+        <div class="card stat-card p-3 text-center">
+          <div class="stat-value ${colorClass}">${value}</div>
+          <div class="text-muted small">${label}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  function statusBadge(status) {
+    return `<span class="badge badge-${status}">${status}</span>`;
+  }
+
+  async function loadDashboard() {
+    try {
+      const data = await fetchDashboard();
+      const s = data.stats;
+
+      document.getElementById("statsRow").innerHTML = [
+        statCard("Ativas", s.active_licenses, "text-success"),
+        statCard("Expiradas", s.expired_licenses, "text-secondary"),
+        statCard("Suspensas", s.suspended_licenses, "text-warning"),
+        statCard("Banidas", s.banned_licenses, "text-danger"),
+        statCard("Vitalícias", s.lifetime_licenses, "text-primary"),
+        statCard("Online agora", s.online_users, "text-info"),
+      ].join("");
+
+      new Chart(document.getElementById("monthlyChart"), {
+        type: "bar",
+        data: {
+          labels: data.licenses_per_month.map((m) => m.label),
+          datasets: [{ label: "Licenças", data: data.licenses_per_month.map((m) => m.count), backgroundColor: "#4f46e5" }],
+        },
+        options: { plugins: { legend: { display: false } } },
+      });
+
+      new Chart(document.getElementById("dailyChart"), {
+        type: "line",
+        data: {
+          labels: data.logins_per_day.map((d) => d.label),
+          datasets: [{ label: "Logins", data: data.logins_per_day.map((d) => d.count), borderColor: "#16a34a", tension: 0.3 }],
+        },
+        options: { plugins: { legend: { display: false } } },
+      });
+
+      document.getElementById("recentTableBody").innerHTML = data.recent_licenses
+        .map(
+          (lic) => `
+          <tr>
+            <td><code>${lic.license_key}</code></td>
+            <td>${lic.license_type}</td>
+            <td>${statusBadge(lic.status)}</td>
+            <td>${lic.customer_name || "-"}</td>
+            <td>${new Date(lic.created_at).toLocaleString("pt-BR")}</td>
+          </tr>
+        `
+        )
+        .join("");
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  loadDashboard();
+</script>
+</body>
+</html>

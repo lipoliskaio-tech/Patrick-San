@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Licenças - Painel de Licenças</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="static/css/style.css" rel="stylesheet">
+</head>
+<body>
+<div id="app"></div>
+
+<!-- Modal: Criar Licença -->
+<div class="modal fade" id="createModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Criar Licença</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="createForm">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Tipo</label>
+            <select class="form-select" id="c_type">
+              <option value="1_dia">1 dia</option>
+              <option value="7_dias">7 dias</option>
+              <option value="30_dias" selected>30 dias</option>
+              <option value="1_ano">1 ano</option>
+              <option value="vitalicia">Vitalícia</option>
+              <option value="customizada">Customizada</option>
+            </select>
+          </div>
+          <div class="mb-3" id="customDaysWrap" style="display:none;">
+            <label class="form-label">Dias (customizada)</label>
+            <input type="number" class="form-control" id="c_custom_days" min="1">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Quantidade</label>
+            <input type="number" class="form-control" id="c_quantity" value="1" min="1" max="500">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Nome do cliente</label>
+            <input type="text" class="form-control" id="c_customer">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Observações</label>
+            <textarea class="form-control" id="c_notes" rows="2"></textarea>
+          </div>
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="c_use_hwid" checked>
+            <label class="form-check-label">Vincular ao HWID</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Criar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Histórico -->
+<div class="modal fade" id="historyModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Histórico de Logins</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="table-responsive">
+          <table class="table table-sm">
+            <thead><tr><th>Data</th><th>IP</th><th>HWID</th><th>Versão</th><th>Sucesso</th></tr></thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Alterar Validade -->
+<div class="modal fade" id="expiryModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Alterar Validade</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="expiryForm">
+        <div class="modal-body">
+          <input type="hidden" id="e_license_id">
+          <div class="mb-3">
+            <label class="form-label">Nova data de expiração</label>
+            <input type="datetime-local" class="form-control" id="e_expires_at">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Ou adicionar/remover dias (ex: 7 ou -7)</label>
+            <input type="number" class="form-control" id="e_add_days">
+          </div>
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="e_is_lifetime">
+            <label class="form-check-label">Tornar vitalícia</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="static/js/config.js"></script>
+<script src="static/js/api.js"></script>
+<script src="static/js/layout.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  requireAuth();
+
+  renderLayout("licenses", `
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h2>Licenças</h2>
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">+ Nova Licença</button>
+    </div>
+
+    <div class="card stat-card p-3 mb-3">
+      <div class="row g-2">
+        <div class="col-md-3"><input class="form-control" id="f_key" placeholder="Chave"></div>
+        <div class="col-md-3"><input class="form-control" id="f_customer" placeholder="Cliente"></div>
+        <div class="col-md-3"><input class="form-control" id="f_hwid" placeholder="HWID"></div>
+        <div class="col-md-2">
+          <select class="form-select" id="f_status">
+            <option value="">Status (todos)</option>
+            <option value="ativa">Ativa</option>
+            <option value="expirada">Expirada</option>
+            <option value="suspensa">Suspensa</option>
+            <option value="banida">Banida</option>
+          </select>
+        </div>
+        <div class="col-md-1"><button class="btn btn-secondary w-100" id="searchBtn">Buscar</button></div>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th></th><th>Chave</th><th>Tipo</th><th>Status</th><th>Cliente</th>
+            <th>Dias restantes</th><th>HWID</th><th>Último IP</th><th>Último login</th><th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="licensesBody"></tbody>
+      </table>
+    </div>
+  `);
+
+  document.getElementById("c_type").addEventListener("change", (e) => {
+    document.getElementById("customDaysWrap").style.display =
+      e.target.value === "customizada" ? "block" : "none";
+  });
+
+  function statusBadge(status) {
+    return `<span class="badge badge-${status}">${status}</span>`;
+  }
+
+  function onlineDot(isOnline) {
+    return `<span class="online-dot ${isOnline ? "on" : "off"}" title="${isOnline ? "Online" : "Offline"}"></span>`;
+  }
+
+  function renderRow(lic) {
+    const days = lic.is_lifetime ? "Vitalícia" : (lic.days_remaining ?? "-");
+    return `
+      <tr>
+        <td>${onlineDot(lic.is_online)}</td>
+        <td><code>${lic.license_key}</code></td>
+        <td>${lic.license_type}</td>
+        <td>${statusBadge(lic.status)}</td>
+        <td>${lic.customer_name || "-"}</td>
+        <td>${days}</td>
+        <td>${lic.hwid ? lic.hwid.substring(0, 12) + "…" : "-"}</td>
+        <td>${lic.last_ip || "-"}</td>
+        <td>${lic.last_login_at ? new Date(lic.last_login_at).toLocaleString("pt-BR") : "-"}</td>
+        <td>
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">Ações</button>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="#" onclick="openHistory(${lic.id}); return false;">📜 Histórico</a></li>
+              <li><a class="dropdown-item" href="#" onclick="openExpiry(${lic.id}); return false;">📅 Alterar validade</a></li>
+              <li><a class="dropdown-item" href="#" onclick="doResetHwid(${lic.id}); return false;">♻️ Resetar HWID</a></li>
+              <li><a class="dropdown-item" href="#" onclick="doSuspend(${lic.id}); return false;">🟡 Suspender</a></li>
+              <li><a class="dropdown-item" href="#" onclick="doReactivate(${lic.id}); return false;">🟢 Reativar</a></li>
+              <li><a class="dropdown-item text-danger" href="#" onclick="doBan(${lic.id}); return false;">🔴 Banir</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item text-danger" href="#" onclick="doDelete(${lic.id}); return false;">🗑️ Excluir</a></li>
+            </ul>
+          </div>
+        </td>
+      </tr>
+    `;
+  }
+
+  async function loadLicenses() {
+    const params = {
+      license_key: document.getElementById("f_key").value,
+      customer_name: document.getElementById("f_customer").value,
+      hwid: document.getElementById("f_hwid").value,
+      status: document.getElementById("f_status").value,
+    };
+    try {
+      const results = await searchLicenses(params);
+      document.getElementById("licensesBody").innerHTML = results.map(renderRow).join("") ||
+        `<tr><td colspan="10" class="text-center text-muted py-4">Nenhuma licença encontrada.</td></tr>`;
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  document.getElementById("searchBtn").addEventListener("click", loadLicenses);
+
+  document.getElementById("createForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const payload = {
+      license_type: document.getElementById("c_type").value,
+      quantity: parseInt(document.getElementById("c_quantity").value, 10) || 1,
+      customer_name: document.getElementById("c_customer").value || null,
+      notes: document.getElementById("c_notes").value || null,
+      use_hwid: document.getElementById("c_use_hwid").checked,
+    };
+    if (payload.license_type === "customizada") {
+      payload.custom_days = parseInt(document.getElementById("c_custom_days").value, 10) || 30;
+    }
+    try {
+      await createLicenses(payload);
+      bootstrap.Modal.getInstance(document.getElementById("createModal")).hide();
+      e.target.reset();
+      loadLicenses();
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  async function openHistory(id) {
+    try {
+      const history = await getLicenseHistory(id);
+      document.getElementById("historyBody").innerHTML = history.map((h) => `
+        <tr>
+          <td>${new Date(h.created_at).toLocaleString("pt-BR")}</td>
+          <td>${h.ip_address}</td>
+          <td>${h.hwid || "-"}</td>
+          <td>${h.version_used || "-"}</td>
+          <td>${h.success ? "✅" : "❌ " + (h.failure_reason || "")}</td>
+        </tr>
+      `).join("") || `<tr><td colspan="5" class="text-center text-muted">Sem histórico.</td></tr>`;
+      new bootstrap.Modal(document.getElementById("historyModal")).show();
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  function openExpiry(id) {
+    document.getElementById("e_license_id").value = id;
+    document.getElementById("e_expires_at").value = "";
+    document.getElementById("e_add_days").value = "";
+    document.getElementById("e_is_lifetime").checked = false;
+    new bootstrap.Modal(document.getElementById("expiryModal")).show();
+  }
+
+  document.getElementById("expiryForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const id = document.getElementById("e_license_id").value;
+    const payload = {};
+    const expiresAt = document.getElementById("e_expires_at").value;
+    const addDays = document.getElementById("e_add_days").value;
+    const isLifetime = document.getElementById("e_is_lifetime").checked;
+    if (expiresAt) payload.expires_at = new Date(expiresAt).toISOString();
+    if (addDays) payload.add_days = parseInt(addDays, 10);
+    if (isLifetime) payload.is_lifetime = true;
+    try {
+      await updateExpiry(id, payload);
+      bootstrap.Modal.getInstance(document.getElementById("expiryModal")).hide();
+      loadLicenses();
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  async function doResetHwid(id) {
+    if (!confirm("Resetar o HWID desta licença?")) return;
+    try { await resetHwid(id); loadLicenses(); } catch (err) { alert(err.message); }
+  }
+  async function doSuspend(id) {
+    if (!confirm("Suspender esta licença?")) return;
+    try { await suspendLicense(id); loadLicenses(); } catch (err) { alert(err.message); }
+  }
+  async function doReactivate(id) {
+    try { await reactivateLicense(id); loadLicenses(); } catch (err) { alert(err.message); }
+  }
+  async function doBan(id) {
+    if (!confirm("Tem certeza que deseja BANIR esta licença? Esta ação é grave.")) return;
+    try { await banLicense(id); loadLicenses(); } catch (err) { alert(err.message); }
+  }
+  async function doDelete(id) {
+    if (!confirm("Tem certeza que deseja EXCLUIR esta licença permanentemente? Esta ação não pode ser desfeita.")) return;
+    try { await deleteLicense(id); loadLicenses(); } catch (err) { alert(err.message); }
+  }
+
+  loadLicenses();
+</script>
+</body>
+</html>
